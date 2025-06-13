@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import numpy as np
 from langchain_groq import ChatGroq
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 
@@ -64,8 +66,8 @@ if uploaded_file is not None:
         #------------------------------------------------------------  
 
             shape=df.shape
-            summary_stats = df.describe()
-            null_counts = df.isna().sum().div(df.shape[0]).mul(100).to_frame(name='MissingPercentage').sort_values(by='MissingPercentage',ascending=False)
+            summary_stats = df.describe().to_dict()
+            null_counts = df.isna().sum().div(df.shape[0]).mul(100).to_frame(name='MissingPercentage').sort_values(by='MissingPercentage',ascending=False).to_dict()
 
             #correlation_matrix = df.corr().to_string()
             numeric_features = [feature for feature in df.columns if df[feature].dtype != 'O']
@@ -82,10 +84,10 @@ if uploaded_file is not None:
                 2.Missing Values:{null_counts}
                 3.numeric_features:{numeric_features}
                 4.categorical_features:{categorical_features}
-                5.summary_statistics (in table):{summary_stats}
+                5.summary statistics:{summary_stats}
                 
 
-                Give a concise , missing issues, and conclusion IN tablular format with reports in beautful   words.
+                Give a concise , missing issues, and conclusion IN tablular format with reports in beautful   words with no recommdations.
                 """
 
             llm = ChatGroq(groq_api_key=groq_api_key,model_name="llama-3.3-70b-versatile")
@@ -95,14 +97,81 @@ if uploaded_file is not None:
             st.info(response.content)
             st.balloons()
 
+
+
             
 
-            option = st.selectbox(
-                    "select the target column",
-                    [column for column in df.columns],index=None
-                                    )
+        #------------------------------------------------------------------------------------
+            st.title('Univariate Analysis:')
+            column = st.selectbox("Select column for univariate analysis", df.columns,index=None)
+            if column is not None and column in numeric_features:
+                 plot_option = st.selectbox("Select plot", ["Histogram", "Boxplot", "Density Plot"])
+                 #plt.figure(figsize=(15, 8))
+                 fig, ax = plt.subplots()
+                 if plot_option == "Histogram":
+                      sns.histplot(df[column], kde=True, ax=ax)
+                 elif plot_option == "Boxplot":
+                      sns.boxplot(y=df[column], ax=ax)
+                 elif plot_option == "Density Plot":
+                      sns.kdeplot(df[column], ax=ax)
+                 st.pyplot(fig) 
+                 desc = df[column].describe()
+                 value_counts = df[column].value_counts().to_dict()
+                 iqr = desc["75%"] - desc["25%"]
+                 outliers = df[(df[column] < desc["25%"] - 1.5 * iqr) | (df[column] > desc["75%"] + 1.5 * iqr)]
+                 print(outliers)
+                 outlier_count = len(outliers)
+                 univarient_num_prompt=f"""
+                                    Analyze this univariate column:
+                                    - Summary stats: {desc.to_dict()}
+                                    
+                                    -outliers: {outliers[column]}(using IQR method){iqr}
+                                    - Outliers detected: {outlier_count}
 
-            st.write("You selected:", option)
+                                    Please provide:
+                                        - Insights on distribution (normal/skewed)
+                                        - Outlier explanation
+                                    all in undersatbale and simple words and table formats without long paragraphs and recoommdations"""  
+                 response=llm.invoke(univarient_num_prompt)  
+                 st.info(response.content) 
+
+            if column is not None and column in categorical_features:
+                 plot_option = st.selectbox("Select plot", ["Bar Chart", "Pie Chart"],)
+                 #plt.figure(figsize=(8, 8))
+                 fig, ax = plt.subplots()
+                 if plot_option == "Bar Chart":
+                      sns.countplot(data=df, x=column, ax=ax)
+                 elif plot_option == "Pie Chart":
+                      
+                      df[column].value_counts().plot.pie(y=df[column],figsize=(15,16),autopct='%1.1f')
+                      #ax.axis('equal')  # Ensures the pie is a circle
+                 st.pyplot(fig)
+                 counts = df[column].value_counts().to_dict()
+                 univarient_cat_prompt = f"Here is the category distribution as percentages: {counts}. Give me insights about this distribution."
+
+                 response=llm.invoke(univarient_cat_prompt)  
+                 st.info(response.content) 
+
+        #------------------------------------------------------------------------------------
+            st.title('Multivariate Analysis:')
+
+
+            
+            
+
+
+   
+
+
+            #option = st.selectbox(
+                    #"select the target column",
+                    #[column for column in df.columns],index=None
+                                    #)   
+            #st.write("You selected:", option)
+                            
+
+                        
+                 
              
 
         
@@ -126,7 +195,7 @@ if uploaded_file is not None:
         
         
         except Exception as e:
-            st.error(f"Error loading file: {e}")          
+            st.error(f"{e}")          
         
 
 
