@@ -5,3 +5,4 @@ dotenv
 langchain-groq
 seaborn
 matplotlib
+scipy
