@@ -336,6 +336,101 @@ if uploaded_file is not None:
       #------------------------------------------------------------------------------------------------------
 
             st.title("Data Cleaning:")
+            nan_70_option=st.radio('Do you want to remove rows and columns with more than 70% missing values?',
+                                   ('Select an option','Yes','No' ))
+            
+            
+            
+            #In Pandas:
+               #df[mask] —> filters rows.
+               #df.loc[:, mask] —> filters columns.
+            
+            
+            df_removed=df.copy()
+            if nan_70_option =='Yes':
+                threshold=0.7
+                df_removed=df_removed[df_removed.isnull().mean(axis=1) < threshold]
+                df_removed=df_removed.reset_index(drop=True)
+                print(df_removed.isnull().mean(axis=0))
+                df_removed=df_removed.loc[:,df_removed.isnull().mean(axis=0) < threshold]
+                st.write("You chose to remove rows with >70% missing values.")
+                st.dataframe(df_removed.isnull().sum())
+
+            elif nan_70_option == 'No':
+                st.write("You chose not to remove those rows.")
+                st.dataframe(df_removed.isnull().sum())    
+
+            if nan_70_option in ['Yes','No']:
+
+               nan_num_option = st.radio(
+               "Choose method to fill missing values of numerical column",
+               ( 'Select an option',
+               "Fill with mean",
+               "Fill with median", 
+               "Fill with zero",
+                 "Forward fill",
+                 'Backward fill')
+                              )
+               df_cleaned = df_removed.copy()
+               df_cleaned_num=df_cleaned[[feature for feature in df_cleaned.columns if df_cleaned[feature].dtype != 'O']]
+               print(df_cleaned_num)
+
+
+            
+
+               if nan_num_option == "Fill with mean":
+                  df_cleaned_num = df_cleaned_num.fillna(df.mean(numeric_only=True))
+
+               elif nan_num_option == "Fill with median":
+                  df_cleaned_num = df_cleaned_num.fillna(df.median(numeric_only=True))
+
+               elif nan_num_option == "Fill with zero":
+                  df_cleaned_num = df_cleaned_num.fillna(0)
+
+               elif nan_num_option == "Forward fill":
+                  df_cleaned_num = df_cleaned_num.fillna(method="ffill").fillna(method='bfill')
+
+               elif nan_num_option == "Backward fill":
+                  
+                  df_cleaned_num = df_cleaned_num.fillna(method="bfill").fillna(method="ffill")
+
+               st.dataframe(df_cleaned_num .isnull().sum().T) 
+
+               if nan_num_option in [ "Fill with mean",
+               "Fill with median", 
+               "Fill with zero",
+                 "Forward fill",
+                 'Backward fill'] :
+                    
+                  nan_cat_option = st.radio(
+               "Choose method to fill missing values of categorical column",
+               ( 'Select an option',
+               "Fill with mode",
+                "Forward fill",
+                 'Backward fill'))
+                  df_cleaned_cat=df_cleaned[[feature for feature in df_cleaned.columns if df_cleaned[feature].dtype == 'O']]
+                  if nan_cat_option == "Fill with mode":
+                     df_cleaned_cat = df_cleaned_cat.fillna(df_cleaned_cat.mode())
+                  elif nan_cat_option == "Forward fill":
+                     df_cleaned_cat = df_cleaned_cat.fillna(method="ffill").fillna(method='bfill')
+                  elif nan_cat_option == "Backward fill":
+                     df_cleaned_cat = df_cleaned_cat.fillna(method="bfill").fillna(method="ffill")
+
+                  st.dataframe(df_cleaned_cat.isnull().sum()) 
+
+
+
+
+
+          #new_cleaned_df=pd.concat([df_cleaned_num, df_cleaned_cat], axis=1)
+
+         #------------------------------------------------------------------------------------------------------
+                  if nan_cat_option in ["Fill with mode","Forward fill",'Backward fill']:
+                     new_cleaned_df=pd.concat([df_cleaned_num, df_cleaned_cat], axis=1)
+
+             
+
+            
   
 
 
